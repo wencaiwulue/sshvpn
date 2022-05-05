@@ -50,6 +50,8 @@ func NewStack(ctx context.Context, tun stack.LinkEndpoint) *stack.Stack {
 	s.SetTransportProtocolHandler(tcp.ProtocolNumber, handler.TCPHandler(s))
 	s.SetTransportProtocolHandler(udp.ProtocolNumber, handler.UDPHandler(s))
 	s.SetTransportProtocolHandler(icmp.ProtocolNumber4, handler.ICMPHandler(s))
+	s.SetTransportProtocolHandler(icmp.ProtocolNumber6, handler.ICMP6Handler(s))
+
 	s.SetRouteTable([]tcpip.Route{
 		{
 			Destination: header.IPv4EmptySubnet,
