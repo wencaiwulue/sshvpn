@@ -1,18 +1,20 @@
-package devtun
+package tun
 
 import (
 	"context"
+	"net"
 	"sync"
 
+	"github.com/google/gopacket/layers"
 	log "github.com/sirupsen/logrus"
-	"github.com/wencaiwulue/tlstunnel/pkg/util"
-	"golang.zx2c4.com/wireguard/tun"
+	"github.com/wencaiwulue/kubevpn/v2/pkg/config"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
+	"gvisor.dev/gvisor/pkg/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip"
-	"gvisor.dev/gvisor/pkg/tcpip/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
 	"gvisor.dev/gvisor/pkg/tcpip/link/channel"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
-	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
 )
 
 var _ stack.LinkEndpoint = (*tunEndpoint)(nil)
@@ -20,9 +22,10 @@ var _ stack.LinkEndpoint = (*tunEndpoint)(nil)
 // tunEndpoint /Users/naison/go/pkg/mod/gvisor.dev/gvisor@v0.0.0-20220422052705-39790bd3a15a/pkg/tcpip/link/tun/device.go:122
 type tunEndpoint struct {
 	ctx      context.Context
-	tun      tun.Device
+	tun      net.Conn
 	once     sync.Once
 	endpoint *channel.Endpoint
+	engine   config.Engine
 }
 
 // WritePackets writes packets. Must not be called with an empty list of
@@ -39,8 +42,7 @@ func (e *tunEndpoint) WritePackets(p stack.PacketBufferList) (int, tcpip.Error) 
 // physical network doesn't exist, the limit is generally 64k, which
 // includes the maximum size of an IP packet.
 func (e *tunEndpoint) MTU() uint32 {
-	mtu, _ := e.tun.MTU()
-	return uint32(mtu)
+	return uint32(config.DefaultMTU)
 }
 
 // MaxHeaderLength returns the maximum size the data link (and
@@ -74,54 +76,87 @@ func (e *tunEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
 	e.once.Do(func() {
 		go func() {
 			for {
-				func() {
-					read := e.endpoint.ReadContext(e.ctx)
-					if read != nil {
-						size := read.Size()
-						views := read.Views()
-						views = append([]buffer.View{make(buffer.View, 4)}, views...)
-
-						vView := buffer.NewVectorisedView(size, views)
-						_, err := e.tun.Write(vView.ToView(), 4)
-						if err != nil {
-							log.Warningln(err)
-						}
+				select {
+				case <-e.ctx.Done():
+					return
+				default:
+				}
+				read := e.endpoint.ReadContext(e.ctx)
+				if !read.IsNil() {
+					bb := read.ToView().AsSlice()
+					_, err := e.tun.Write(bb)
+					if err != nil {
+						log.Fatalf("[TUN] Fatal: failed to write data to tun device: %v", err)
 					}
-				}()
+				}
 			}
 		}()
 		// tun --> dispatcher
 		go func() {
+			// full(all use gvisor), mix(cluster network use gvisor), raw(not use gvisor)
 			for {
-				func() {
-					bytes := util.MPool.Get().([]byte)[:]
-					defer util.MPool.Put(bytes)
-					read, err := e.tun.Read(bytes, 4)
+				bytes := config.LPool.Get().([]byte)[:]
+				read, err := e.tun.Read(bytes[:])
+				if err != nil {
+					// if context is still going
+					if e.ctx.Err() == nil {
+						log.Fatalf("[TUN]: read from tun failed: %v", err)
+					} else {
+						log.Info("tun device closed")
+					}
+					return
+				}
+				if read == 0 {
+					log.Warnf("[TUN]: read from tun length is %d", read)
+					continue
+				}
+				// Try to determine network protocol number, default zero.
+				var protocol tcpip.NetworkProtocolNumber
+				var ipProtocol int
+				var src, dst net.IP
+				// TUN interface with IFF_NO_PI enabled, thus
+				// we need to determine protocol from version field
+				version := bytes[0] >> 4
+				if version == 4 {
+					protocol = header.IPv4ProtocolNumber
+					ipHeader, err := ipv4.ParseHeader(bytes[:read])
 					if err != nil {
-						log.Warningln(err)
-						return
+						log.Errorf("parse ipv4 header failed: %s", err.Error())
+						continue
 					}
-					if read <= 4 {
-						log.Warnf("[TUN]: read from tun length is %d", read)
+					ipProtocol = ipHeader.Protocol
+					src = ipHeader.Src
+					dst = ipHeader.Dst
+				} else if version == 6 {
+					protocol = header.IPv6ProtocolNumber
+					ipHeader, err := ipv6.ParseHeader(bytes[:read])
+					if err != nil {
+						log.Errorf("parse ipv6 header failed: %s", err.Error())
+						continue
 					}
-					// Try to determine network protocol number, default zero.
-					var protocol tcpip.NetworkProtocolNumber
-					// TUN interface with IFF_NO_PI enabled, thus
-					// we need to determine protocol from version field
-					version := bytes[4] >> 4
-					if version == 4 {
-						protocol = header.IPv4ProtocolNumber
-					} else if version == 6 {
-						protocol = header.IPv6ProtocolNumber
-					}
-
+					ipProtocol = ipHeader.NextHeader
+					src = ipHeader.Src
+					dst = ipHeader.Dst
+				} else {
+					log.Debugf("[TUN-gvisor] unknown packet version %d", version)
+					continue
+				}
+				// only tcp and udp needs to distinguish transport engine
+				//   gvisor: all network use gvisor
+				//   mix: cluster network use gvisor, diy network use raw
+				//   raw: all network use raw
+				if ipProtocol == int(layers.IPProtocolUDP) || ipProtocol == int(layers.IPProtocolUDPLite) || ipProtocol == int(layers.IPProtocolTCP) {
 					pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
-						ReserveHeaderBytes: 4,
-						Data:               buffer.NewViewFromBytes(bytes[4 : 4+read]).ToVectorisedView(),
+						ReserveHeaderBytes: 0,
+						Payload:            buffer.MakeWithData(bytes[:read]),
 					})
 					//defer pkt.DecRef()
+					config.LPool.Put(bytes[:])
 					e.endpoint.InjectInbound(protocol, pkt)
-				}()
+					log.Debugf("[TUN-%s] IP-Protocol: %s, SRC: %s, DST: %s, Length: %d", layers.IPProtocol(ipProtocol).String(), layers.IPProtocol(ipProtocol).String(), src.String(), dst, read)
+				} else {
+					log.Debugf("[TUN-RAW] IP-Protocol: %s, SRC: %s, DST: %s, Length: %d", layers.IPProtocol(ipProtocol).String(), src.String(), dst, read)
+				}
 			}
 		}()
 	})
@@ -153,19 +188,15 @@ func (e *tunEndpoint) ARPHardwareType() header.ARPHardwareType {
 }
 
 // AddHeader adds a link layer header to the packet if required.
-func (e *tunEndpoint) AddHeader(*stack.PacketBuffer) {
+func (e *tunEndpoint) AddHeader(ptr stack.PacketBufferPtr) {
 	return
 }
 
-func NewTunEndpoint(ctx context.Context, tun tun.Device) (stack.LinkEndpoint, error) {
-	mtu, err := tun.MTU()
-	if err != nil {
-		return nil, err
-	}
+func NewTunEndpoint(ctx context.Context, tun net.Conn, mtu uint32) stack.LinkEndpoint {
 	addr, _ := tcpip.ParseMACAddress("02:03:03:04:05:06")
 	return &tunEndpoint{
 		ctx:      ctx,
 		tun:      tun,
-		endpoint: channel.New(tcp.DefaultReceiveBufferSize, uint32(mtu), addr),
-	}, nil
+		endpoint: channel.New(1024, mtu, addr),
+	}
 }

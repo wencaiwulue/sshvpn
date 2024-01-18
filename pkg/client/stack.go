@@ -1,10 +1,9 @@
-package pkg
+package client
 
 import (
 	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/wencaiwulue/tlstunnel/pkg/handler"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
 	"gvisor.dev/gvisor/pkg/tcpip/link/packetsocket"
@@ -26,7 +25,7 @@ func (i id) UniqueID() uint64 {
 	return 1
 }
 
-func NewStack(ctx context.Context, tun stack.LinkEndpoint) *stack.Stack {
+func NewStack(ctx context.Context, tun stack.LinkEndpoint, tcpAddr, udpAddr string) *stack.Stack {
 	s := stack.New(stack.Options{
 		NetworkProtocols: []stack.NetworkProtocolFactory{
 			ipv4.NewProtocol,
@@ -40,17 +39,17 @@ func NewStack(ctx context.Context, tun stack.LinkEndpoint) *stack.Stack {
 		},
 		Clock:                    tcpip.NewStdClock(),
 		AllowPacketEndpointWrite: true,
-		HandleLocal:              false,
+		HandleLocal:              true,
 		// Enable raw sockets for users with sufficient
 		// privileges.
 		RawFactory: raw.EndpointFactory{},
 		UniqueID:   id{},
 	})
 	// set handler for TCP UDP ICMP
-	s.SetTransportProtocolHandler(tcp.ProtocolNumber, handler.TCPHandler(s))
-	s.SetTransportProtocolHandler(udp.ProtocolNumber, handler.UDPHandler(s))
-	s.SetTransportProtocolHandler(icmp.ProtocolNumber4, handler.ICMPHandler(s))
-	s.SetTransportProtocolHandler(icmp.ProtocolNumber6, handler.ICMP6Handler(s))
+	s.SetTransportProtocolHandler(tcp.ProtocolNumber, TCPHandler(s, tcpAddr))
+	s.SetTransportProtocolHandler(udp.ProtocolNumber, UDPHandler(s, udpAddr))
+	//s.SetTransportProtocolHandler(icmp.ProtocolNumber4, handler.ICMPHandler(s))
+	//s.SetTransportProtocolHandler(icmp.ProtocolNumber6, handler.ICMP6Handler(s))
 
 	s.SetRouteTable([]tcpip.Route{
 		{

@@ -1,4 +1,4 @@
-package handler
+package client
 
 import "gvisor.dev/gvisor/pkg/tcpip/stack"
 
