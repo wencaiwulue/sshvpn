@@ -17,6 +17,9 @@ func UDPHandler(conn net.Conn) {
 		log.Warningln(err)
 		return
 	}
+	log.Debugf("[TUN-TCP] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
+		endpoint.LocalPort, endpoint.LocalAddress.String(), endpoint.RemotePort, endpoint.RemoteAddress.String(),
+	)
 	//2, dial proxy
 	proxy := &net.UDPAddr{IP: net.ParseIP(endpoint.RemoteAddress.String()), Port: int(endpoint.RemotePort)}
 	dial, err2 := net.DialUDP("udp", nil, proxy)
