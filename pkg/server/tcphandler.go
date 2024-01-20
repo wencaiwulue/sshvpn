@@ -29,6 +29,7 @@ func TCPHandler(conn net.Conn) {
 		log.Warningln(err2)
 		return
 	}
+	defer dial.Close()
 	go io.Copy(conn, dial)
 	io.Copy(dial, conn)
 }
