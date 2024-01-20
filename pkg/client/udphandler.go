@@ -31,6 +31,7 @@ func UDPHandler(s *stack.Stack, remote string) func(id stack.TransportEndpointID
 			log.Warningln(t)
 			return
 		}
+		defer endpoint.Close()
 		conn := gonet.NewUDPConn(s, w, endpoint)
 		if err = util.WriteProxyInfo(conn, request.ID()); err != nil {
 			log.Warningln(err)

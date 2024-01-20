@@ -25,6 +25,7 @@ func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *
 			log.Warningln(err)
 			return
 		}
+		defer dialer.Close()
 		if err = util.WriteProxyInfo(dialer, request.ID()); err != nil {
 			log.Warningln(err)
 			return
@@ -36,7 +37,9 @@ func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *
 			log.Warningln(t)
 			return
 		}
+		defer endpoint.Close()
 		conn := gonet.NewTCPConn(w, endpoint)
+		defer conn.Close()
 		go io.Copy(dialer, conn)
 		io.Copy(conn, dialer)
 	}).HandlePacket
