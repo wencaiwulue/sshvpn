@@ -2,9 +2,11 @@ package client
 
 import (
 	"crypto/tls"
+	"errors"
 	"io"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/wencaiwulue/kubevpn/v2/pkg/config"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
@@ -20,13 +22,13 @@ func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *
 		log.Debugf("[TUN-TCP-CLIENT] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
 			request.ID().LocalPort, request.ID().LocalAddress.String(), request.ID().RemotePort, request.ID().RemoteAddress.String(),
 		)
-		dialer, err := tls.Dial("tcp", remote, ssl.TlsConfigClient)
+		dial, err := tls.Dial("tcp", remote, ssl.TlsConfigClient)
 		if err != nil {
 			log.Warningln(err)
 			return
 		}
-		defer dialer.Close()
-		if err = util.WriteProxyInfo(dialer, request.ID()); err != nil {
+		defer dial.Close()
+		if err = util.WriteProxyInfo(dial, request.ID()); err != nil {
 			log.Warningln(err)
 			return
 		}
@@ -40,7 +42,25 @@ func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *
 		defer endpoint.Close()
 		conn := gonet.NewTCPConn(w, endpoint)
 		defer conn.Close()
-		go io.Copy(dialer, conn)
-		io.Copy(conn, dialer)
+
+		errChan := make(chan error, 2)
+		go func() {
+			i := config.LPool.Get().([]byte)[:]
+			defer config.LPool.Put(i[:])
+			written, err := io.CopyBuffer(dial, conn, i)
+			log.Debugf("[TUN-TCP] Debug: write length %d data to remote", written)
+			errChan <- err
+		}()
+		go func() {
+			i := config.LPool.Get().([]byte)[:]
+			defer config.LPool.Put(i[:])
+			written, err := io.CopyBuffer(conn, dial, i)
+			log.Debugf("[TUN-TCP] Debug: read length %d data from remote", written)
+			errChan <- err
+		}()
+		err = <-errChan
+		if err != nil && !errors.Is(err, io.EOF) {
+			log.Debugf("[TUN-TCP] Error: dsiconnect: %s >-<: %s: %v", conn.LocalAddr(), dial.RemoteAddr(), err)
+		}
 	}).HandlePacket
 }

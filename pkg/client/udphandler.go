@@ -2,9 +2,11 @@ package client
 
 import (
 	"crypto/tls"
+	"errors"
 	"io"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/wencaiwulue/kubevpn/v2/pkg/config"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
@@ -38,7 +40,25 @@ func UDPHandler(s *stack.Stack, remote string) func(id stack.TransportEndpointID
 			return
 		}
 		defer conn.Close()
-		go io.Copy(conn, dial)
-		io.Copy(dial, conn)
+
+		errChan := make(chan error, 2)
+		go func() {
+			i := config.LPool.Get().([]byte)[:]
+			defer config.LPool.Put(i[:])
+			written, err2 := io.CopyBuffer(dial, conn, i)
+			log.Debugf("[TUN-UDP] Debug: write length %d data to remote", written)
+			errChan <- err2
+		}()
+		go func() {
+			i := config.LPool.Get().([]byte)[:]
+			defer config.LPool.Put(i[:])
+			written, err2 := io.CopyBuffer(conn, dial, i)
+			log.Debugf("[TUN-UDP] Debug: read length %d data from remote", written)
+			errChan <- err2
+		}()
+		err = <-errChan
+		if err != nil && !errors.Is(err, io.EOF) {
+			log.Debugf("[TUN-UDP] Error: dsiconnect: %s >-<: %s: %v", conn.LocalAddr(), dial.RemoteAddr(), err)
+		}
 	}).HandlePacket
 }
