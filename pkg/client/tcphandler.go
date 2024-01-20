@@ -7,13 +7,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/config"
+	"github.com/wencaiwulue/kubevpn/v2/pkg/core"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
 	"gvisor.dev/gvisor/pkg/waiter"
 
 	"github.com/wencaiwulue/tlstunnel/pkg/ssl"
-	"github.com/wencaiwulue/tlstunnel/pkg/util"
 )
 
 func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *stack.PacketBuffer) bool {
@@ -28,7 +28,7 @@ func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *
 			return
 		}
 		defer dial.Close()
-		if err = util.WriteProxyInfo(dial, request.ID()); err != nil {
+		if err = core.WriteProxyInfo(dial, request.ID()); err != nil {
 			log.Warningln(err)
 			return
 		}
