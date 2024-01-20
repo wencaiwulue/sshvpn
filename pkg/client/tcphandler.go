@@ -17,7 +17,7 @@ import (
 func TCPHandler(s *stack.Stack, remote string) func(stack.TransportEndpointID, *stack.PacketBuffer) bool {
 	return tcp.NewForwarder(s, 0, 100000, func(request *tcp.ForwarderRequest) {
 		defer request.Complete(false)
-		log.Debugf("[TUN-TCP] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
+		log.Debugf("[TUN-TCP-CLIENT] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
 			request.ID().LocalPort, request.ID().LocalAddress.String(), request.ID().RemotePort, request.ID().RemoteAddress.String(),
 		)
 		dialer, err := tls.Dial("tcp", remote, ssl.TlsConfigClient)
