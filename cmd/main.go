@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "net/http/pprof"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/wencaiwulue/tlstunnel/cmd/cmds"
@@ -11,6 +12,7 @@ import (
 
 func main() {
 	cmd := NewTunnelCommand()
+	logrus.SetLevel(logrus.DebugLevel)
 	cmd.AddCommand(
 		cmds.CmdServer(),
 		cmds.CmdClient(),

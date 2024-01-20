@@ -39,7 +39,7 @@ func NewStack(ctx context.Context, tun stack.LinkEndpoint, tcpAddr, udpAddr stri
 		},
 		Clock:                    tcpip.NewStdClock(),
 		AllowPacketEndpointWrite: true,
-		HandleLocal:              true,
+		HandleLocal:              false,
 		// Enable raw sockets for users with sufficient
 		// privileges.
 		RawFactory: raw.EndpointFactory{},

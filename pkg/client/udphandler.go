@@ -22,6 +22,10 @@ func UDPHandler(s *stack.Stack, remote string) func(id stack.TransportEndpointID
 			log.Warningln(err)
 			return
 		}
+		defer dial.Close()
+		log.Debugf("[TUN-TCP] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
+			request.ID().LocalPort, request.ID().LocalAddress.String(), request.ID().RemotePort, request.ID().RemoteAddress.String(),
+		)
 		endpoint, t := request.CreateEndpoint(w)
 		if t != nil {
 			log.Warningln(t)
@@ -32,6 +36,7 @@ func UDPHandler(s *stack.Stack, remote string) func(id stack.TransportEndpointID
 			log.Warningln(err)
 			return
 		}
+		defer conn.Close()
 		go io.Copy(conn, dial)
 		io.Copy(dial, conn)
 	}).HandlePacket
