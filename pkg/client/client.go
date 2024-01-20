@@ -66,7 +66,7 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 	defer tunConn.Close()
 	endpoint := tun.NewTunEndpoint(ctx, tunConn, uint32(tunConf.MTU))
 
-	stack := NewStack(ctx, endpoint, fmt.Sprintf("localhost:%d", tcpPort), fmt.Sprintf("localhost:%d", udpPort))
+	stack := NewStack(ctx, endpoint, fmt.Sprintf("tcp://localhost:%d", tcpPort), fmt.Sprintf("tcp://localhost:%d", udpPort))
 	go stack.Wait()
 
 	log.Infof("you can use VPN now~")
