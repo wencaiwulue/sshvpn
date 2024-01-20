@@ -2,10 +2,8 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-
-	"github.com/wencaiwulue/tlstunnel/pkg/ssl"
+	"net"
 )
 
 func Serve(ctx context.Context, tcpPort int, udpPort int) error {
@@ -36,7 +34,7 @@ func Serve(ctx context.Context, tcpPort int, udpPort int) error {
 }
 
 func tcpListener(tcpPort int) error {
-	listener, err := tls.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", tcpPort), ssl.TlsConfigServer)
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", tcpPort))
 	if err != nil {
 		return err
 	}
@@ -50,7 +48,7 @@ func tcpListener(tcpPort int) error {
 }
 
 func udpListener(udpPort int) error {
-	listener, err := tls.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", udpPort), ssl.TlsConfigServer)
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", udpPort))
 	if err != nil {
 		return err
 	}
