@@ -9,8 +9,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/wencaiwulue/kubevpn/v2/pkg/util"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/wencaiwulue/kubevpn/v2/pkg/util"
 )
 
 func Jump(ctx context.Context, conf util.SshConfig, localPort, remotePort int) error {

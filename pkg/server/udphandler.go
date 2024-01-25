@@ -7,7 +7,7 @@ import (
 	"github.com/wencaiwulue/kubevpn/v2/pkg/core"
 )
 
-func UDPHandler(conn net.Conn) {
+func UDPHandler(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
-	core.GvisorUDPHandler().Handle(context.Background(), conn)
+	core.GvisorUDPHandler().Handle(ctx, conn)
 }

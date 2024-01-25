@@ -3,7 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
+
+	"github.com/wencaiwulue/kubevpn/v2/pkg/core"
 )
 
 func Serve(ctx context.Context, tcpPort int, udpPort int) error {
@@ -11,7 +12,7 @@ func Serve(ctx context.Context, tcpPort int, udpPort int) error {
 
 	// 1) setup tcp server
 	go func() {
-		err := tcpListener(tcpPort)
+		err := tcpListener(ctx, tcpPort)
 		if err != nil {
 			errChan <- err
 		}
@@ -19,7 +20,7 @@ func Serve(ctx context.Context, tcpPort int, udpPort int) error {
 
 	// 2) setup udp server
 	go func() {
-		err := udpListener(udpPort)
+		err := udpListener(ctx, udpPort)
 		if err != nil {
 			errChan <- err
 		}
@@ -33,30 +34,34 @@ func Serve(ctx context.Context, tcpPort int, udpPort int) error {
 	}
 }
 
-func tcpListener(tcpPort int) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", tcpPort))
+func tcpListener(ctx context.Context, tcpPort int) error {
+	listener, err := core.GvisorTCPListener(fmt.Sprintf("0.0.0.0:%d", tcpPort))
 	if err != nil {
 		return err
 	}
-	for {
+	defer listener.Close()
+	for ctx.Err() == nil {
 		conn, err := listener.Accept()
 		if err != nil {
 			return err
 		}
-		go TCPHandler(conn)
+		go TCPHandler(ctx, conn)
 	}
+	return ctx.Err()
 }
 
-func udpListener(udpPort int) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", udpPort))
+func udpListener(ctx context.Context, udpPort int) error {
+	listener, err := core.GvisorUDPListener(fmt.Sprintf("0.0.0.0:%d", udpPort))
 	if err != nil {
 		return err
 	}
-	for {
+	defer listener.Close()
+	for ctx.Err() == nil {
 		conn, err := listener.Accept()
 		if err != nil {
 			return err
 		}
-		go UDPHandler(conn)
+		go UDPHandler(ctx, conn)
 	}
+	return ctx.Err()
 }
