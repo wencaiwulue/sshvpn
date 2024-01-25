@@ -1,3 +1,3 @@
-## TLS Tunnel
+## SSH-VPN
 
-A safety virtual personal network with TLS or DTLS
+A safety virtual personal network over SSH and Gvisor
