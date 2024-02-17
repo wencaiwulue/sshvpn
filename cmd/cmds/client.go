@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/wencaiwulue/kubevpn/v2/pkg/driver"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/util"
 
 	"github.com/wencaiwulue/tlstunnel/pkg/client"
@@ -23,6 +24,11 @@ func CmdClient() *cobra.Command {
 		Use:   "client",
 		Short: "client to connect server",
 		Long:  `client to connect server`,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if util.IsWindows() {
+				driver.InstallWireGuardTunDriver()
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch mode {
 			case config.ProxyTypeGlobe:
@@ -44,6 +50,7 @@ func CmdClient() *cobra.Command {
 				<-signals
 				cancelFunc()
 			}()
+			defer driver.UninstallWireGuardTunDriver()
 			return client.Connect(ctx, extraCIDR, sshConf)
 		},
 		SilenceUsage: true,
