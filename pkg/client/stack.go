@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
+
 	log "github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
@@ -25,7 +27,7 @@ func (i id) UniqueID() uint64 {
 	return 1
 }
 
-func NewStack(ctx context.Context, tun stack.LinkEndpoint, tcpAddr, udpAddr string) *stack.Stack {
+func NewStack(ctx context.Context, tun stack.LinkEndpoint, device *net.Interface, tcpAddr, udpAddr string) *stack.Stack {
 	s := stack.New(stack.Options{
 		NetworkProtocols: []stack.NetworkProtocolFactory{
 			ipv4.NewProtocol,
@@ -47,7 +49,7 @@ func NewStack(ctx context.Context, tun stack.LinkEndpoint, tcpAddr, udpAddr stri
 	})
 	// set handler for TCP UDP ICMP
 	s.SetTransportProtocolHandler(tcp.ProtocolNumber, TCPHandler(s, tcpAddr))
-	s.SetTransportProtocolHandler(udp.ProtocolNumber, UDPHandler(s, udpAddr))
+	s.SetTransportProtocolHandler(udp.ProtocolNumber, UDPHandler(s, device, udpAddr))
 	//s.SetTransportProtocolHandler(icmp.ProtocolNumber4, handler.ICMPHandler(s))
 	//s.SetTransportProtocolHandler(icmp.ProtocolNumber6, handler.ICMP6Handler(s))
 
