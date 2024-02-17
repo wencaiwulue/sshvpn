@@ -3,6 +3,7 @@ package cmds
 import (
 	"context"
 	"os"
+	"os/exec"
 	"os/signal"
 
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ func CmdServer() *cobra.Command {
 				<-signals
 				cancelFunc()
 			}()
+			_ = exec.Command("ulimit", "-HSn", "102400").Run()
 			return server.Serve(ctx, config.TCPPort, config.UDPPort)
 		},
 		SilenceUsage: true,

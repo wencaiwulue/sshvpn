@@ -84,16 +84,16 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 				defer config.LPool.Put(i[:])
 				var written int
 				for {
-					n, err3 := remote.Read(i[:])
-					if err3 != nil {
-						errChan <- err3
+					n, err := remote.Read(i[:])
+					if err != nil {
+						errChan <- err
 						break
 					}
 					written += n
 					addRoute(i, n, r, device.Name)
-					_, err3 = conn.Write(i[:n])
-					if err3 != nil {
-						errChan <- err3
+					_, err = conn.Write(i[:n])
+					if err != nil {
+						errChan <- err
 						break
 					}
 				}
@@ -101,7 +101,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			}()
 			err = <-errChan
 			if err != nil && !errors.Is(err, io.EOF) {
-				log.Debugf("[TUN-UDP] Error: dsiconnect: %s >-<: %s: %v", conn.LocalAddr(), remote.RemoteAddr(), err)
+				log.Debugf("[TUN-UDP] Error: disconnect: %s >-<: %s: %v", conn.LocalAddr(), remote.RemoteAddr(), err)
 			}
 		}()
 	}).HandlePacket
