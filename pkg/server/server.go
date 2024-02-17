@@ -12,18 +12,12 @@ func Serve(ctx context.Context, tcpPort int, udpPort int) error {
 
 	// 1) setup tcp server
 	go func() {
-		err := tcpListener(ctx, tcpPort)
-		if err != nil {
-			errChan <- err
-		}
+		errChan <- tcpListener(ctx, tcpPort)
 	}()
 
 	// 2) setup udp server
 	go func() {
-		err := udpListener(ctx, udpPort)
-		if err != nil {
-			errChan <- err
-		}
+		errChan <- udpListener(ctx, udpPort)
 	}()
 
 	select {
