@@ -13,7 +13,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
-	github.com/wencaiwulue/kubevpn/v2 v2.2.3-0.20240215134604-46fcf5521f27
+	github.com/wencaiwulue/kubevpn/v2 v2.2.3-0.20240217121107-1f32a129b698
 	golang.org/x/crypto v0.18.0
 	golang.org/x/net v0.20.0
 	gvisor.dev/gvisor v0.0.0-20230603040744-5c9219dedd33
