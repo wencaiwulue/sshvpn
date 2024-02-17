@@ -9,12 +9,13 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
-// networksetup -getdnsservers Wi-Fi
-func GetDnsServers(ctx context.Context) ([]string, error) {
+// GetDnsServers networksetup -getdnsservers Wi-Fi
+func GetDnsServers(ctx context.Context, device *net.Interface) (*dns.ClientConfig, error) {
 	str := "networksetup -getdnsservers Wi-Fi"
 	log.Debug(str)
 	split := strings.Split(str, " ")
@@ -30,14 +31,17 @@ func GetDnsServers(ctx context.Context) ([]string, error) {
 			list = append(list, s)
 		}
 	}
-	return list, nil
+	config := dns.ClientConfig{
+		Servers: list,
+	}
+	return &config, nil
 }
 
-// networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
-func SetDnsServers(ctx context.Context, servers []string) error {
+// SetDnsServers networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
+func SetDnsServers(ctx context.Context, config dns.ClientConfig, device *net.Interface) error {
 	var str = fmt.Sprintf("networksetup -setdnsservers Wi-Fi empty")
-	if len(servers) != 0 {
-		str = fmt.Sprintf("networksetup -setdnsservers Wi-Fi %s", strings.Join(servers, " "))
+	if len(config.Servers) != 0 {
+		str = fmt.Sprintf("networksetup -setdnsservers Wi-Fi %s", strings.Join(config.Servers, " "))
 	}
 	log.Debug(str)
 	split := strings.Split(str, " ")

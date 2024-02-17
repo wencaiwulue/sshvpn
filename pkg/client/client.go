@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	pkgtun "github.com/wencaiwulue/kubevpn/v2/pkg/tun"
 	pkgutil "github.com/wencaiwulue/kubevpn/v2/pkg/util"
+
 	"github.com/wencaiwulue/tlstunnel/pkg/config"
 	pkgdns "github.com/wencaiwulue/tlstunnel/pkg/dns"
 	"github.com/wencaiwulue/tlstunnel/pkg/tun"
@@ -49,16 +50,6 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 	if err != nil {
 		return err
 	}
-	err = pkgdns.Append(ctx, resolvConf.Servers)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := pkgdns.Remove(context.Background(), resolvConf.Servers)
-		if err != nil {
-			log.Error(err)
-		}
-	}()
 
 	var routes []types.Route
 	for _, r := range CIDRs {
@@ -99,6 +90,17 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 	if err != nil {
 		return err
 	}
+
+	err = pkgdns.Append(ctx, *resolvConf, device)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := pkgdns.Remove(context.Background(), *resolvConf, device)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
 
 	tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", tcpPort)
 	udpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", udpPort)
