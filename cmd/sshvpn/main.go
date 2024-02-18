@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/wencaiwulue/tlstunnel/cmd/cmds"
+	"github.com/wencaiwulue/tlstunnel/cmd/sshvpn/cmds"
 )
 
 func main() {
@@ -16,6 +16,7 @@ func main() {
 	cmd.AddCommand(
 		cmds.CmdServer(),
 		cmds.CmdClient(),
+		cmds.CmdVersion(),
 	)
 	_ = cmd.ExecuteContext(context.Background())
 }
