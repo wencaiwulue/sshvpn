@@ -12,6 +12,7 @@ import (
 
 	"github.com/wencaiwulue/tlstunnel/pkg/client"
 	"github.com/wencaiwulue/tlstunnel/pkg/config"
+	pkgutil "github.com/wencaiwulue/tlstunnel/pkg/util"
 )
 
 func CmdClient() *cobra.Command {
@@ -25,6 +26,10 @@ func CmdClient() *cobra.Command {
 		Short: "client to connect server",
 		Long:  `client to connect server`,
 		PreRun: func(cmd *cobra.Command, args []string) {
+			if !pkgutil.IsAdmin() {
+				pkgutil.RunWithElevated()
+				os.Exit(0)
+			}
 			if util.IsWindows() {
 				driver.InstallWireGuardTunDriver()
 			}
