@@ -22,19 +22,7 @@ import (
 )
 
 func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
-	node, err := core.ParseNode(udpAddr)
-	if err != nil {
-		log.Debugf("[TUN-UDP] Error: parse gviosr udp forward addr %s: %v", udpAddr, err)
-		log.Fatal(err)
-	}
-	node.Client = &core.Client{
-		Connector:   core.GvisorUDPOverTCPTunnelConnector(stack.TransportEndpointID{}),
-		Transporter: core.TCPTransporter(),
-	}
-	forwardChain := core.NewChain(5, node)
-
-	var r routing.Router
-	r, err = netroute.New()
+	r, err := netroute.New()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,7 +39,19 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			return
 		}
 		ctx := context.Background()
-		c, err := forwardChain.Node().Client.Dial(ctx, forwardChain.Node().Addr)
+		var node *core.Node
+		node, err = core.ParseNode(udpAddr)
+		if err != nil {
+			log.Debugf("[TUN-UDP] Error: parse gviosr udp forward addr %s: %v", udpAddr, err)
+			log.Fatal(err)
+		}
+		node.Client = &core.Client{
+			Connector:   core.GvisorUDPOverTCPTunnelConnector(stack.TransportEndpointID{}),
+			Transporter: core.TCPTransporter(),
+		}
+		forwardChain := core.NewChain(5, node)
+		var c net.Conn
+		c, err = forwardChain.Node().Client.Dial(ctx, forwardChain.Node().Addr)
 		if err != nil {
 			log.Debugf("[TUN-TCP] Error: failed to dial remote conn: %v", err)
 			return
