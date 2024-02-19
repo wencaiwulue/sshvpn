@@ -23,7 +23,7 @@ func main() {
 
 func NewTunnelCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "tunnel",
+		Use:   "sshvpn",
 		Short: "connect to remote network",
 		Long: `
       connect to remote network.

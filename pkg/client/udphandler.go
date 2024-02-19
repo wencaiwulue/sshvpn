@@ -50,9 +50,8 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			log.Debugf("[TUN-UDP] Error: can not create endpoint: %v", tErr)
 			return
 		}
-
 		ctx := context.Background()
-		c, err := forwardChain.Node().Client.Dial(context.Background(), forwardChain.Node().Addr)
+		c, err := forwardChain.Node().Client.Dial(ctx, forwardChain.Node().Addr)
 		if err != nil {
 			log.Debugf("[TUN-TCP] Error: failed to dial remote conn: %v", err)
 			return
@@ -75,9 +74,9 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			go func() {
 				i := config.LPool.Get().([]byte)[:]
 				defer config.LPool.Put(i[:])
-				written, err2 := io.CopyBuffer(remote, conn, i)
+				written, err := io.CopyBuffer(remote, conn, i)
 				log.Debugf("[TUN-UDP] Debug: write length %d data to remote", written)
-				errChan <- err2
+				errChan <- err
 			}()
 			go func() {
 				i := config.LPool.Get().([]byte)[:]
