@@ -3,20 +3,29 @@
 package dns
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/wencaiwulue/tlstunnel/pkg/util"
 )
 
 // GetDnsServers networksetup -getdnsservers Wi-Fi
 func GetDnsServers(ctx context.Context, device *net.Interface) (*dns.ClientConfig, error) {
-	str := "networksetup -getdnsservers Wi-Fi"
+	deviceName := "Wi-Fi"
+	name, err := util.GetDefaultDevice()
+	if err == nil {
+		deviceName = *name
+	}
+	str := fmt.Sprintf("networksetup -getdnsservers %s", deviceName)
 	log.Debug(str)
 	split := strings.Split(str, " ")
 	output, err := exec.CommandContext(ctx, split[0], split[1:]...).Output()
@@ -31,6 +40,22 @@ func GetDnsServers(ctx context.Context, device *net.Interface) (*dns.ClientConfi
 			list = append(list, s)
 		}
 	}
+	if len(list) == 0 {
+		var getDefaultNameServer = func() ([]string, error) {
+			get, err := resolvconf.Get()
+			if err != nil {
+				return nil, err
+			}
+			resolvConf, err := dns.ClientConfigFromReader(bytes.NewBuffer(get.Content))
+			if err != nil {
+				return nil, err
+			}
+			return resolvConf.Servers, nil
+		}
+		if nameServer, _ := getDefaultNameServer(); nameServer != nil {
+			list = append(list, nameServer...)
+		}
+	}
 	config := dns.ClientConfig{
 		Servers: list,
 	}
@@ -39,9 +64,14 @@ func GetDnsServers(ctx context.Context, device *net.Interface) (*dns.ClientConfi
 
 // SetDnsServers networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
 func SetDnsServers(ctx context.Context, config dns.ClientConfig, device *net.Interface) error {
-	var str = fmt.Sprintf("networksetup -setdnsservers Wi-Fi empty")
+	deviceName := "Wi-Fi"
+	name, err := util.GetDefaultDevice()
+	if err == nil {
+		deviceName = *name
+	}
+	var str = fmt.Sprintf("networksetup -setdnsservers %s empty", deviceName)
 	if len(config.Servers) != 0 {
-		str = fmt.Sprintf("networksetup -setdnsservers Wi-Fi %s", strings.Join(config.Servers, " "))
+		str = fmt.Sprintf("networksetup -setdnsservers %s %s", deviceName, strings.Join(config.Servers, " "))
 	}
 	log.Debug(str)
 	split := strings.Split(str, " ")
