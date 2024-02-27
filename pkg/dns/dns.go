@@ -37,7 +37,7 @@ func Append(ctx context.Context, config dns.ClientConfig, device *net.Interface)
 }
 
 func Remove(ctx context.Context, config dns.ClientConfig, device *net.Interface) error {
-	local, err := GetDnsServers(ctx, nil)
+	local, err := GetDnsServers(ctx, device)
 	if err != nil {
 		return err
 	}
