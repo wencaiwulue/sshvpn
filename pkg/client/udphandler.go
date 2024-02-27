@@ -122,10 +122,16 @@ func addRoute(i []byte, n int, r routing.Router, tunName string) {
 		if errs == nil && tunName == iface.Name {
 			continue
 		}
+		var mask net.IPMask
+		if answer.IP.To4() != nil {
+			mask = net.CIDRMask(32, 32)
+		} else {
+			mask = net.CIDRMask(128, 128)
+		}
 		err := tun.AddRoutes(tunName, types.Route{
 			Dst: net.IPNet{
 				IP:   answer.IP,
-				Mask: net.CIDRMask(len(answer.IP)*8, len(answer.IP)*8),
+				Mask: mask,
 			},
 			GW: nil,
 		})
