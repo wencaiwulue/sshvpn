@@ -68,7 +68,7 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 		})
 	}
 	ipv4 := net.IPv4(223, 253, 0, 1)
-	ipv6 := net.IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	ipv6 := net.ParseIP("efff:ffff:ffff:ffff:ffff:ffff:ffff:8888")
 	tunConf := pkgtun.Config{
 		Addr:   (&net.IPNet{IP: ipv4, Mask: net.CIDRMask(32, 32)}).String(),
 		Addr6:  (&net.IPNet{IP: ipv6, Mask: net.CIDRMask(128, 128)}).String(),
