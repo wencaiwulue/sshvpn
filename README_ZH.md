@@ -20,34 +20,34 @@
 
 A safety virtual personal network over SSH and Gvisor
 
-## Content
+## 内容
 
-1. [QuickStart](./README.md#quickstart)
-2. [Functions](./README.md#functions)
-3. [Architecture](./README.md#architecture)
+1. [快速开始](./README.md#quickstart)
+2. [功能](./README.md#functions)
+3. [架构](./README.md#architecture)
 
-## QuickStart
+## 快速开始
 
-### Install server
+### 安装 server
 
-SSH login to your ssh server
+SSH 登录到 ssh server上
 
-#### Download sshvpn binary
+#### 下载 sshvpn 二进制
 
 ```shell
 curl -Lo sshvpn.zip https://github.com/wencaiwulue/sshvpn/releases/download/v1.0.0/sshvpn_v1.0.0_linux_amd64.zip && unzip -d sshvpn sshvpn.zip && mv ./sshvpn/bin/sshvpn /usr/local/bin
 ```
 
-#### Run server
+#### 运行 server
 
 ```shell
 nohup sshvpn server &
 ```
 
-#### Install client
+#### 安装 client
 
-Download from GitHub release
-[release](https://github.com/wencaiwulue/sshvpn/releases/latest)
+从 Github 下载
+[下载](https://github.com/wencaiwulue/sshvpn/releases/latest)
 
 ```shell
 ➜  sshvpn version
@@ -60,9 +60,9 @@ SSHVPN: CLI
     Built Go version: go1.21.7
 ```
 
-## Functions
+## 功能
 
-### Connect to remote ssh server network
+### 连接到远程 SSH server 的网络
 
 ```shell
 ➜  ~ sshvpn client --ssh-addr xxx.xxx.xxx.xxx:22 --ssh-username root --ssh-password xxx
@@ -83,26 +83,28 @@ DEBU[0001] [TUN-UDP] Debug: LocalPort: 53, LocalAddress: xxx.xxx.xxx.xxx, Remote
 ...
 ```
 
-Leave this terminal alone
+不要关闭这个终端，保持它一直运行，新开一个终端，尝试 ```curl www.google.com -L```
 
 ```shell
 ➜  ~ curl www.google.com -L
 <!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en-SG"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"><meta content="/images/branding/googleg/1x/googleg_standard_color_128dp.png" itemprop="image"><title>Google</title><script nonce="KGbHmdii_0HKvWBmaQ_OAQ">...
 ```
 
-### Open local PC browser to visit web via SSH server network
+发现可以通
 
-### Multiple Protocol
+### 打开本地浏览器，然后电脑上所有的流量都是通过 SSH server 访问的
+
+### 支持多种协议
 
 - TCP
 - UDP
 
-### Cross-platform
+### 跨平台
 
 - macOS
 - Linux
 - Windows
 
-## Architecture
+## 架构
 
-Architecture can be found [here](/docs/en/Architecture.md).
+架构可以从这里找到 [这里](/docs/zh/Architecture.md).
