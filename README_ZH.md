@@ -28,9 +28,9 @@ A safety virtual personal network over SSH and Gvisor
 
 ## 快速开始
 
-### 安装 server
+### 安装 server（在 ssh server 上）
 
-SSH 登录到 ssh server上
+SSH 登录到 ssh server 上
 
 #### 下载 sshvpn 二进制
 
@@ -44,7 +44,7 @@ curl -Lo sshvpn.zip https://github.com/wencaiwulue/sshvpn/releases/download/v1.0
 nohup sshvpn server &
 ```
 
-#### 安装 client
+### 安装 client（在本地电脑上）
 
 从 Github 下载
 [下载](https://github.com/wencaiwulue/sshvpn/releases/latest)
