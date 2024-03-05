@@ -17,6 +17,7 @@ import (
 
 func CmdClient() *cobra.Command {
 	var mode config.ProxyType
+	var stack config.StackType
 	var pacPath string
 	var extraCIDR []string
 	var sshConf util.SshConfig
@@ -36,7 +37,7 @@ func CmdClient() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch mode {
-			case config.ProxyTypeGlobe:
+			case config.ProxyTypeGlobal:
 				//if len(remote) == 0 {
 				//	log.Fatal("Globe mode, remote ip should not be empty")
 				//}
@@ -56,16 +57,17 @@ func CmdClient() *cobra.Command {
 				cancelFunc()
 			}()
 			defer driver.UninstallWireGuardTunDriver()
-			return client.Connect(ctx, extraCIDR, sshConf)
+			return client.Connect(ctx, extraCIDR, sshConf, mode, stack)
 		},
 		SilenceUsage: true,
 	}
-	cmd.Flags().StringVar((*string)(&mode), "mode", string(config.ProxyTypeGlobe), "Only support mode globe or pac")
+	cmd.Flags().StringVar((*string)(&mode), "mode", string(config.ProxyTypeGlobal), "Only support mode globe or pac")
 	_ = cmd.Flags().MarkHidden("mode")
 	cmd.Flags().StringVar(&pacPath, "pac", "", "The path of PAC, can be a url or local path")
 	_ = cmd.Flags().MarkHidden("pac")
 	cmd.Flags().IntVarP(&config.TCPPort, "tcp-port", "t", config.TCPPort, "The tcp port of remote linux server")
 	cmd.Flags().IntVarP(&config.UDPPort, "udp-port", "u", config.UDPPort, "The udp port of remote linux server")
+	cmd.Flags().StringVar((*string)(&stack), "stack", string(config.DualStack), string("Network stack. ["+config.SingleStackIPv4+"|"+config.SingleStackIPv6+"|"+config.DualStack+"]"))
 	cmd.Flags().StringArrayVar(&extraCIDR, "extra-cidr", []string{}, "CIDR string, eg: --cidr 192.168.0.159/24 --cidr 192.168.1.160/32")
 	addSshFlags(cmd, &sshConf)
 	return cmd
