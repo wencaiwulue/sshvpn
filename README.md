@@ -28,7 +28,7 @@ A safety virtual personal network over SSH and Gvisor
 
 ## QuickStart
 
-### Install server
+### Install server(On ssh server)
 
 SSH login to your ssh server
 
@@ -44,7 +44,7 @@ curl -Lo sshvpn.zip https://github.com/wencaiwulue/sshvpn/releases/download/v1.0
 nohup sshvpn server &
 ```
 
-#### Install client
+### Install client(On local computer)
 
 Download from GitHub release
 [release](https://github.com/wencaiwulue/sshvpn/releases/latest)
