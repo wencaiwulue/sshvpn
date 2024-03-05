@@ -20,33 +20,8 @@ import (
 	"github.com/wencaiwulue/tlstunnel/pkg/tun"
 )
 
-func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error {
-	tcpPort, err := pkgutil.GetAvailableTCPPortOrDie()
-	if err != nil {
-		return err
-	}
-	udpPort, err := pkgutil.GetAvailableUDPPortOrDie()
-	if err != nil {
-		return err
-	}
-
-	portPair := []string{
-		fmt.Sprintf("%d:%d", tcpPort, config.TCPPort),
-		fmt.Sprintf("%d:%d", udpPort, config.UDPPort),
-	}
-	client, err := pkgutil.DialSshRemote(ctx, &conf)
-	if err != nil {
-		return err
-	}
-	err = portMap(ctx, &conf, portPair)
-	if err != nil {
-		return err
-	}
-	output, out, err := pkgutil.RemoteRun(client, "cat /etc/resolv.conf", nil)
-	if err != nil {
-		return errors.Wrap(err, string(out))
-	}
-	resolvConf, err := dns.ClientConfigFromReader(bytes.NewBufferString(string(output)))
+func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig, mode config.ProxyType, stackType config.StackType) error {
+	resolvConf, err := getDnsConfig(conf)
 	if err != nil {
 		return err
 	}
@@ -67,13 +42,22 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 			},
 		})
 	}
-	ipv4 := net.IPv4(223, 253, 0, 1)
+	ipv4 := net.ParseIP("223.253.0.1")
 	ipv6 := net.ParseIP("efff:ffff:ffff:ffff:ffff:ffff:ffff:8888")
+	addr4 := (&net.IPNet{IP: ipv4, Mask: net.CIDRMask(32, 32)}).String()
+	addr6 := (&net.IPNet{IP: ipv6, Mask: net.CIDRMask(128, 128)}).String()
 	tunConf := pkgtun.Config{
-		Addr:   (&net.IPNet{IP: ipv4, Mask: net.CIDRMask(32, 32)}).String(),
-		Addr6:  (&net.IPNet{IP: ipv6, Mask: net.CIDRMask(128, 128)}).String(),
 		MTU:    1500,
 		Routes: routes,
+	}
+	switch stackType {
+	case config.SingleStackIPv4:
+		tunConf.Addr = addr4
+	case config.SingleStackIPv6:
+		tunConf.Addr6 = addr6
+	case config.DualStack:
+		tunConf.Addr = addr4
+		tunConf.Addr6 = addr6
 	}
 	listener, err := pkgtun.Listener(tunConf)
 	if err != nil {
@@ -101,18 +85,56 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig) error 
 			log.Error(err)
 		}
 	}()
-
-	tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", tcpPort)
-	udpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", udpPort)
+	tcpAddr, udpAddr, err := getForwardAddr(ctx, conf)
+	if err != nil {
+		return err
+	}
 	endpoint := tun.NewTunEndpoint(ctx, tunConn, uint32(tunConf.MTU))
 	stack := NewStack(ctx, endpoint, device, tcpAddr, udpAddr)
 	go stack.Wait()
 
 	log.Infof("you can use VPN now~")
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func getForwardAddr(ctx context.Context, conf pkgutil.SshConfig) (string, string, error) {
+	tcpPort, err := pkgutil.GetAvailableTCPPortOrDie()
+	if err != nil {
+		return "", "", err
 	}
+	udpPort, err := pkgutil.GetAvailableUDPPortOrDie()
+	if err != nil {
+		return "", "", err
+	}
+
+	portPair := []string{
+		fmt.Sprintf("%d:%d", tcpPort, config.TCPPort),
+		fmt.Sprintf("%d:%d", udpPort, config.UDPPort),
+	}
+	err = portMap(ctx, &conf, portPair)
+	if err != nil {
+		return "", "", err
+	}
+	tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", tcpPort)
+	udpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", udpPort)
+	return tcpAddr, udpAddr, nil
+}
+
+func getDnsConfig(conf pkgutil.SshConfig) (*dns.ClientConfig, error) {
+	client, err := pkgutil.DialSshRemote(&conf)
+	if err != nil {
+		return nil, err
+	}
+	stdout, errout, err := pkgutil.RemoteRun(client, "cat /etc/resolv.conf", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, string(errout))
+	}
+	resolvConf, err := dns.ClientConfigFromReader(bytes.NewBufferString(string(stdout)))
+	if err != nil {
+		return nil, errors.Wrap(err, string(stdout))
+	}
+	return resolvConf, nil
 }
 
 // portPair is local:remote
