@@ -35,12 +35,17 @@ func Connect(ctx context.Context, CIDRs []string, conf pkgutil.SshConfig, mode c
 		routes = append(routes, types.Route{Dst: *c})
 	}
 	for _, server := range resolvConf.Servers {
-		routes = append(routes, types.Route{
-			Dst: net.IPNet{
-				IP:   net.ParseIP(server),
-				Mask: net.CIDRMask(len(net.ParseIP(server))*8, len(net.ParseIP(server))*8),
-			},
-		})
+		ip := net.ParseIP(server)
+		if ip == nil {
+			continue
+		}
+		var mask net.IPMask
+		if ip.To4() != nil {
+			mask = net.CIDRMask(32, 32)
+		} else {
+			mask = net.CIDRMask(128, 128)
+		}
+		routes = append(routes, types.Route{Dst: net.IPNet{IP: ip, Mask: mask}})
 	}
 	ipv4 := net.ParseIP("223.253.0.1")
 	ipv6 := net.ParseIP("efff:ffff:ffff:ffff:ffff:ffff:ffff:8888")
@@ -112,9 +117,25 @@ func getForwardAddr(ctx context.Context, conf pkgutil.SshConfig) (string, string
 		fmt.Sprintf("%d:%d", tcpPort, config.TCPPort),
 		fmt.Sprintf("%d:%d", udpPort, config.UDPPort),
 	}
-	err = portMap(ctx, &conf, portPair)
-	if err != nil {
-		return "", "", err
+	for _, local2Remote := range portPair {
+		ports := strings.Split(local2Remote, ":")
+		if len(ports) != 2 {
+			return "", "", fmt.Errorf("port pair %s is invalid", local2Remote)
+		}
+		var local netip.AddrPort
+		local, err = netip.ParseAddrPort(net.JoinHostPort("127.0.0.1", ports[0]))
+		if err != nil {
+			return "", "", err
+		}
+		var remote netip.AddrPort
+		remote, err = netip.ParseAddrPort(net.JoinHostPort("127.0.0.1", ports[1]))
+		if err != nil {
+			return "", "", err
+		}
+		err = pkgutil.PortMapUntil(ctx, &conf, remote, local)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", tcpPort)
 	udpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", udpPort)
@@ -122,41 +143,18 @@ func getForwardAddr(ctx context.Context, conf pkgutil.SshConfig) (string, string
 }
 
 func getDnsConfig(conf pkgutil.SshConfig) (*dns.ClientConfig, error) {
-	client, err := pkgutil.DialSshRemote(&conf)
+	client, _, err := pkgutil.DialSshRemote(&conf)
 	if err != nil {
 		return nil, err
 	}
-	stdout, errout, err := pkgutil.RemoteRun(client, "cat /etc/resolv.conf", nil)
+	defer client.Close()
+	stdOut, errOut, err := pkgutil.RemoteRun(client, "cat /etc/resolv.conf", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, string(errout))
+		return nil, errors.Wrap(err, string(errOut))
 	}
-	resolvConf, err := dns.ClientConfigFromReader(bytes.NewBufferString(string(stdout)))
+	resolvConf, err := dns.ClientConfigFromReader(bytes.NewBufferString(string(stdOut)))
 	if err != nil {
-		return nil, errors.Wrap(err, string(stdout))
+		return nil, errors.Wrap(err, string(stdOut))
 	}
 	return resolvConf, nil
-}
-
-// portPair is local:remote
-func portMap(ctx context.Context, conf *pkgutil.SshConfig, portPair []string) error {
-	for _, s := range portPair {
-		ports := strings.Split(s, ":")
-		if len(ports) != 2 {
-			return fmt.Errorf("port pair %s is invalid", s)
-		}
-		local, err := netip.ParseAddrPort(net.JoinHostPort("127.0.0.1", ports[0]))
-		if err != nil {
-			return err
-		}
-		var remote netip.AddrPort
-		remote, err = netip.ParseAddrPort(net.JoinHostPort("127.0.0.1", ports[1]))
-		if err != nil {
-			return err
-		}
-		err = pkgutil.PortMapUntil(ctx, conf, remote, local)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

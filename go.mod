@@ -14,7 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
-	github.com/wencaiwulue/kubevpn/v2 v2.2.3
+	github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307134151-355d63f13968
 	golang.org/x/net v0.20.0
 	golang.org/x/sys v0.16.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
