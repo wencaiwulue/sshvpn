@@ -881,6 +881,8 @@ github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307133034-4819fbf90a89 h1:Y3my5T
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307133034-4819fbf90a89/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307134151-355d63f13968 h1:t6S1pBisDcGXRndzYcneh89MXL/c/ziXzDWSx9qIDZM=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307134151-355d63f13968/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307145855-495c6b9165d6 h1:sNwZeSCJrUadlmcw3Ug/tDg+7ouUW1+xy/cnAn2QcSY=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240307145855-495c6b9165d6/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/willf/bitset v1.1.11/go.mod h1:83CECat5yLh5zVOf4P1ErAgKA5UDvKtgyUABdr3+MjI=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=

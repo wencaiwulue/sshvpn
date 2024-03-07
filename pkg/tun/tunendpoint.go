@@ -93,10 +93,10 @@ func (e *tunEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
 		}()
 		// tun --> dispatcher
 		go func() {
-			// full(all use gvisor), mix(cluster network use gvisor), raw(not use gvisor)
+			buf := config.LPool.Get().([]byte)[:]
+			defer config.LPool.Put(buf[:])
 			for {
-				bytes := config.LPool.Get().([]byte)[:]
-				read, err := e.tun.Read(bytes[:])
+				read, err := e.tun.Read(buf[:])
 				if err != nil {
 					// if context is still going
 					if e.ctx.Err() == nil {
@@ -116,10 +116,10 @@ func (e *tunEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
 				var src, dst net.IP
 				// TUN interface with IFF_NO_PI enabled, thus
 				// we need to determine protocol from version field
-				version := bytes[0] >> 4
+				version := buf[0] >> 4
 				if version == 4 {
 					protocol = header.IPv4ProtocolNumber
-					ipHeader, err := ipv4.ParseHeader(bytes[:read])
+					ipHeader, err := ipv4.ParseHeader(buf[:read])
 					if err != nil {
 						log.Errorf("parse ipv4 header failed: %s", err.Error())
 						continue
@@ -129,7 +129,7 @@ func (e *tunEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
 					dst = ipHeader.Dst
 				} else if version == 6 {
 					protocol = header.IPv6ProtocolNumber
-					ipHeader, err := ipv6.ParseHeader(bytes[:read])
+					ipHeader, err := ipv6.ParseHeader(buf[:read])
 					if err != nil {
 						log.Errorf("parse ipv6 header failed: %s", err.Error())
 						continue
@@ -141,22 +141,13 @@ func (e *tunEndpoint) Attach(dispatcher stack.NetworkDispatcher) {
 					log.Debugf("[TUN-gvisor] unknown packet version %d", version)
 					continue
 				}
-				// only tcp and udp needs to distinguish transport engine
-				//   gvisor: all network use gvisor
-				//   mix: cluster network use gvisor, diy network use raw
-				//   raw: all network use raw
-				if ipProtocol == int(layers.IPProtocolUDP) || ipProtocol == int(layers.IPProtocolUDPLite) || ipProtocol == int(layers.IPProtocolTCP) {
-					pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
-						ReserveHeaderBytes: 0,
-						Payload:            buffer.MakeWithData(bytes[:read]),
-					})
-					//defer pkt.DecRef()
-					config.LPool.Put(bytes[:])
-					e.endpoint.InjectInbound(protocol, pkt)
-					log.Debugf("[TUN-%s] IP-Protocol: %s, SRC: %s, DST: %s, Length: %d", layers.IPProtocol(ipProtocol).String(), layers.IPProtocol(ipProtocol).String(), src.String(), dst, read)
-				} else {
-					log.Debugf("[TUN-RAW] IP-Protocol: %s, SRC: %s, DST: %s, Length: %d", layers.IPProtocol(ipProtocol).String(), src.String(), dst, read)
-				}
+				pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
+					ReserveHeaderBytes: 0,
+					Payload:            buffer.MakeWithData(buf[:read]),
+				})
+				//defer pkt.DecRef()
+				e.endpoint.InjectInbound(protocol, pkt)
+				log.Debugf("[TUN-%s] IP-Protocol: %s, SRC: %s, DST: %s, Length: %d", layers.IPProtocol(ipProtocol).String(), layers.IPProtocol(ipProtocol).String(), src.String(), dst, read)
 			}
 		}()
 	})

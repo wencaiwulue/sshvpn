@@ -46,7 +46,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			log.Fatal(err)
 		}
 		node.Client = &core.Client{
-			Connector:   core.GvisorUDPOverTCPTunnelConnector(stack.TransportEndpointID{}),
+			Connector:   core.GvisorUDPOverTCPTunnelConnector(),
 			Transporter: core.TCPTransporter(),
 		}
 		forwardChain := core.NewChain(5, node)
@@ -89,7 +89,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 						break
 					}
 					written += n
-					addRoute(i, n, r, device.Name)
+					addRoute(i[:n], r, device.Name)
 					_, err = conn.Write(i[:n])
 					if err != nil {
 						errChan <- err
@@ -106,8 +106,8 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 	}).HandlePacket
 }
 
-func addRoute(i []byte, n int, r routing.Router, tunName string) {
-	packet := gopacket.NewPacket(i[:n], layers.LayerTypeDNS, gopacket.Default)
+func addRoute(i []byte, r routing.Router, tunName string) {
+	packet := gopacket.NewPacket(i, layers.LayerTypeDNS, gopacket.Default)
 	dns, ok := packet.ApplicationLayer().(*layers.DNS)
 	if !ok {
 		return
@@ -115,6 +115,9 @@ func addRoute(i []byte, n int, r routing.Router, tunName string) {
 	for _, answer := range dns.Answers {
 		log.Debugf("Name: %s --> IP: %s", answer.Name, answer.IP.String())
 		if answer.IP == nil {
+			continue
+		}
+		if answer.IP.IsLoopback() || answer.IP.IsUnspecified() {
 			continue
 		}
 		// if route is right, not need add route
