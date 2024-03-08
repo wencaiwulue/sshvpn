@@ -46,7 +46,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			log.Fatal(err)
 		}
 		node.Client = &core.Client{
-			Connector:   core.GvisorUDPOverTCPTunnelConnector(stack.TransportEndpointID{}),
+			Connector:   core.GvisorUDPOverTCPTunnelConnector(),
 			Transporter: core.TCPTransporter(),
 		}
 		forwardChain := core.NewChain(5, node)
