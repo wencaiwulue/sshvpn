@@ -14,7 +14,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
-	github.com/wencaiwulue/kubevpn/v2 v2.2.3
+	github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310135103-614021cecfc1
+	golang.org/x/crypto v0.18.0
 	golang.org/x/net v0.20.0
 	golang.org/x/sys v0.16.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
@@ -110,7 +111,6 @@ require (
 	github.com/theupdateframework/notary v0.7.0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
-	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
 	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
