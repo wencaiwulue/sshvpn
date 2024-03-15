@@ -5,28 +5,17 @@ import (
 	"io"
 	"net"
 
-	"github.com/containernetworking/cni/pkg/types"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/routing"
-	"github.com/libp2p/go-netroute"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/config"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/core"
-	"github.com/wencaiwulue/kubevpn/v2/pkg/tun"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
-func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
-	r, err := netroute.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func UDPHandler(s *stack.Stack, udpAddr string, peekPacket func(packet []byte)) func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
 	return udp.NewForwarder(s, func(request *udp.ForwarderRequest) {
 		endpointID := request.ID()
 		log.Debugf("[TUN-UDP] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
@@ -39,8 +28,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			return
 		}
 		ctx := context.Background()
-		var node *core.Node
-		node, err = core.ParseNode(udpAddr)
+		node, err := core.ParseNode(udpAddr)
 		if err != nil {
 			log.Debugf("[TUN-UDP] Error: parse gviosr udp forward addr %s: %v", udpAddr, err)
 			log.Fatal(err)
@@ -89,7 +77,7 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 						break
 					}
 					written += n
-					addRoute(i, n, r, device.Name)
+					peekPacket(i[:n])
 					_, err = conn.Write(i[:n])
 					if err != nil {
 						errChan <- err
@@ -104,39 +92,4 @@ func UDPHandler(s *stack.Stack, device *net.Interface, udpAddr string) func(id s
 			}
 		}()
 	}).HandlePacket
-}
-
-func addRoute(i []byte, n int, r routing.Router, tunName string) {
-	packet := gopacket.NewPacket(i[:n], layers.LayerTypeDNS, gopacket.Default)
-	dns, ok := packet.ApplicationLayer().(*layers.DNS)
-	if !ok {
-		return
-	}
-	for _, answer := range dns.Answers {
-		log.Debugf("Name: %s --> IP: %s", answer.Name, answer.IP.String())
-		if answer.IP == nil {
-			continue
-		}
-		// if route is right, not need add route
-		iface, _, _, errs := r.Route(answer.IP)
-		if errs == nil && tunName == iface.Name {
-			continue
-		}
-		var mask net.IPMask
-		if answer.IP.To4() != nil {
-			mask = net.CIDRMask(32, 32)
-		} else {
-			mask = net.CIDRMask(128, 128)
-		}
-		err := tun.AddRoutes(tunName, types.Route{
-			Dst: net.IPNet{
-				IP:   answer.IP,
-				Mask: mask,
-			},
-			GW: nil,
-		})
-		if err != nil {
-			log.Warnf("failed to add to route: %v", err)
-		}
-	}
 }

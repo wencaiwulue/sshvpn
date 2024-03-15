@@ -883,6 +883,8 @@ github.com/wencaiwulue/kubevpn/v2 v2.2.3-0.20240219134652-6e679cc2f189 h1:xsC1bc
 github.com/wencaiwulue/kubevpn/v2 v2.2.3-0.20240219134652-6e679cc2f189/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308033807-b424ad27bf1e h1:6T7o0FqoKSUGibNqf5BM41jYg38znzdYmyzcuNXbeaA=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308033807-b424ad27bf1e/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308111629-600e35b8d7d7 h1://Q+Q31jSMvHQAvQVjK/fhA5x8p7IC/adFv8IT8OhwM=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308111629-600e35b8d7d7/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308135218-94d2d902b54c h1:V+sgPys34I8KpRMRWkELh/9GpWaOgh5SJf5A8UXwDWo=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240308135218-94d2d902b54c/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240309131239-8499ee724b16 h1:whyTtu0KS5kw+SF5c6WzUCBYSHyfJrXLyqeU4INCf3M=
@@ -893,6 +895,10 @@ github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310135103-614021cecfc1 h1:BGJNbZ
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310135103-614021cecfc1/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310152443-8e7dd67d9301 h1:bERxR3czEFc1+jIzbBFfxiC0dQ/eWp+M8gXHQK/BnO4=
 github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310152443-8e7dd67d9301/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310155026-6560905f60ab h1:774+Jv2Gblc7VIGc+hazTAnHtMvSf1yzApDUqE1zfcw=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240310155026-6560905f60ab/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240316144446-73e2e29c11b0 h1:AarbRcIWFuNt4ZF7GPvE1AtmRA/TfxrqRfR9u0nwvgA=
+github.com/wencaiwulue/kubevpn/v2 v2.2.4-0.20240316144446-73e2e29c11b0/go.mod h1:zQ0OPDSjBv24+nfsWtNcb94fowfjk2i5bBSt1dBIfwE=
 github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/willf/bitset v1.1.11/go.mod h1:83CECat5yLh5zVOf4P1ErAgKA5UDvKtgyUABdr3+MjI=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=

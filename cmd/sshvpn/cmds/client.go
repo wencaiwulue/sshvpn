@@ -2,10 +2,12 @@ package cmds
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/containernetworking/cni/pkg/types"
 	"github.com/spf13/cobra"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/driver"
 	"github.com/wencaiwulue/kubevpn/v2/pkg/util"
@@ -16,9 +18,8 @@ import (
 )
 
 func CmdClient() *cobra.Command {
-	var mode config.ProxyType
+	var mode config.ProxyMode
 	var stack config.StackType
-	var pacPath string
 	var extraCIDR []string
 	var sshConf util.SshConfig
 
@@ -37,16 +38,17 @@ func CmdClient() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch mode {
-			case config.ProxyTypeGlobal:
-				//if len(remote) == 0 {
-				//	log.Fatal("Globe mode, remote ip should not be empty")
-				//}
-			case config.ProxyTypePAC:
-				if len(pacPath) == 0 {
-					log.Fatal("PAC mode, PAC path should not be empty")
-				}
+			case config.ProxyModeFull, config.ProxyModeSplit:
 			default:
-				log.Fatal("Not support proxy mode " + mode)
+				return fmt.Errorf("not support proxy mode: %s", mode)
+			}
+			var routes []types.Route
+			for _, cidr := range extraCIDR {
+				_, c, err := net.ParseCIDR(cidr)
+				if err != nil {
+					return fmt.Errorf("invalid cidr %s, err: %v", cidr, err)
+				}
+				routes = append(routes, types.Route{Dst: *c})
 			}
 			ctx, cancelFunc := context.WithCancel(cmd.Context())
 			defer cancelFunc()
@@ -57,14 +59,11 @@ func CmdClient() *cobra.Command {
 				cancelFunc()
 			}()
 			defer driver.UninstallWireGuardTunDriver()
-			return client.Connect(ctx, extraCIDR, sshConf, mode, stack)
+			return client.Connect(ctx, routes, sshConf, mode, stack)
 		},
 		SilenceUsage: true,
 	}
-	cmd.Flags().StringVar((*string)(&mode), "mode", string(config.ProxyTypeGlobal), "Only support mode globe or pac")
-	_ = cmd.Flags().MarkHidden("mode")
-	cmd.Flags().StringVar(&pacPath, "pac", "", "The path of PAC, can be a url or local path")
-	_ = cmd.Flags().MarkHidden("pac")
+	cmd.Flags().StringVar((*string)(&mode), "mode", string(config.ProxyModeFull), "Traffic mode, full: bypass all traffic, split: bypass traffic intelligent")
 	cmd.Flags().IntVarP(&config.TCPPort, "tcp-port", "t", config.TCPPort, "The tcp port of remote linux server")
 	cmd.Flags().IntVarP(&config.UDPPort, "udp-port", "u", config.UDPPort, "The udp port of remote linux server")
 	cmd.Flags().StringVar((*string)(&stack), "stack", string(config.DualStack), string("Network stack. ["+config.SingleStackIPv4+"|"+config.SingleStackIPv6+"|"+config.DualStack+"]"))
