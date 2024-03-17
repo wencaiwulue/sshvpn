@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
-	"strconv"
 	"strings"
 	"time"
 
@@ -36,7 +36,7 @@ func Connect(ctx context.Context, CIDRs []types.Route, conf pkgutil.SshConfig, m
 	for _, server := range remoteDnsConfig.Servers {
 		CIDRs = append(CIDRs, types.Route{Dst: net.IPNet{IP: net.ParseIP(server), Mask: util.GetMask(net.ParseIP(server))}})
 	}
-	remoteServer := util.GetServer(*remoteDnsConfig)
+	//remoteServer := util.GetServer(*remoteDnsConfig)
 	tunConf := pkgtun.Config{
 		MTU:    1500,
 		Routes: CIDRs,
@@ -69,11 +69,7 @@ func Connect(ctx context.Context, CIDRs []types.Route, conf pkgutil.SshConfig, m
 	if err != nil {
 		return err
 	}
-	localServer := util.GetServer(*servers)
-	if mode == config.ProxyModeSplit {
-		remoteDnsConfig.Servers = []string{"127.0.0.1"}
-		remoteDnsConfig.Port = strconv.Itoa(53)
-	}
+	localServer := util.GetServer(*servers, remoteDnsConfig)
 	err = pkgdns.Append(ctx, *remoteDnsConfig, device)
 	if err != nil {
 		return err
@@ -96,14 +92,17 @@ func Connect(ctx context.Context, CIDRs []types.Route, conf pkgutil.SshConfig, m
 	var peekPacket = func(packet []byte) {
 		peekPacket(packet, r, mode, device.Name)
 	}
-	var peekDns = func(dns *miekgdns.Msg) {
-		peekDns(device.Name, dns)
+	var peekRequest = func(packet []byte, writer io.Writer) bool {
+		return peekRequest(packet, mode, localServer, writer)
 	}
-	err = setupDnsServer(ctx, mode, peekDns, remoteServer, localServer)
-	if err != nil {
-		return err
-	}
-	stack := NewStack(ctx, endpoint, tcpAddr, udpAddr, peekPacket)
+	//var peekDns = func(dns *miekgdns.Msg) {
+	//	peekDns(device.Name, dns)
+	//}
+	//err = setupDnsServer(ctx, mode, peekDns, remoteServer, localServer)
+	//if err != nil {
+	//	return err
+	//}
+	stack := NewStack(ctx, endpoint, tcpAddr, udpAddr, peekRequest, peekPacket)
 	go stack.Wait()
 
 	log.Infof("you can use VPN now~")
@@ -215,6 +214,121 @@ func peekPacket(data []byte, r routing.Router, mode config.ProxyMode, tunName st
 		}
 		addRoute(tunName, answer.IP, string(answer.Name))
 	}
+}
+
+func peekRequest(data []byte, mode config.ProxyMode, localServer string, writer io.Writer) (handled bool) {
+	if mode != config.ProxyModeSplit {
+		return
+	}
+	packet := gopacket.NewPacket(data, layers.LayerTypeDNS, gopacket.Default)
+	dnsPacket, ok := packet.ApplicationLayer().(*layers.DNS)
+	if !ok {
+		return
+	}
+	name := string(dnsPacket.Questions[0].Name)
+	name = strings.TrimSuffix(name, ".")
+	name = strings.TrimPrefix(name, "www.")
+	if util.Set.Has(name) {
+		return
+	}
+
+	var q []miekgdns.Question
+	for _, question := range dnsPacket.Questions {
+		q = append(q, miekgdns.Question{
+			Name:   string(question.Name) + ".",
+			Qtype:  uint16(question.Type),
+			Qclass: uint16(question.Class),
+		})
+	}
+	msg := miekgdns.Msg{
+		MsgHdr: miekgdns.MsgHdr{
+			Id:     dnsPacket.ID,
+			Opcode: int(dnsPacket.OpCode),
+			//Authoritative:      dnsPacket.Authorities,
+			//Truncated:          dnsPacket.,
+			RecursionDesired:   false,
+			RecursionAvailable: false,
+			Zero:               false,
+			AuthenticatedData:  false,
+			CheckingDisabled:   false,
+			Rcode:              int(dnsPacket.ResponseCode),
+		},
+		Question: q,
+		Answer:   nil,
+		Ns:       nil,
+		Extra:    nil,
+	}
+	client := miekgdns.Client{Net: "udp", SingleInflight: true, Timeout: time.Second * 30}
+	answer, _, err := client.ExchangeContext(context.Background(), &msg, localServer)
+	if err != nil {
+		return
+	}
+	for _, rr := range answer.Answer {
+		switch a := rr.(type) {
+		case *miekgdns.A:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  a.A,
+				})
+		case *miekgdns.AAAA:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  a.AAAA,
+				})
+
+		case *miekgdns.PTR:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  []byte(a.Ptr),
+				})
+		case *miekgdns.NSAPPTR:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  []byte(a.Ptr),
+				})
+		case *miekgdns.CNAME:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  []byte(a.Target),
+				})
+		}
+	}
+	for _, rr := range answer.Ns {
+		switch a := rr.(type) {
+		case *miekgdns.SOA:
+			dnsPacket.Answers = append(dnsPacket.Answers,
+				layers.DNSResourceRecord{
+					Name:  []byte(a.Hdr.Name),
+					Type:  layers.DNSType(a.Hdr.Rrtype),
+					Class: layers.DNSClass(a.Hdr.Class),
+					Data:  []byte(a.Ns),
+				})
+		}
+	}
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	err = gopacket.SerializeLayers(buf, opts, dnsPacket)
+	if err != nil {
+		return
+	}
+	i := buf.Bytes()
+	_, err = writer.Write(i)
+	return true
 }
 
 func peekDns(tunName string, dns *miekgdns.Msg) {

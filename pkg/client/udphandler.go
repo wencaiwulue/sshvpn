@@ -15,7 +15,7 @@ import (
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
-func UDPHandler(s *stack.Stack, udpAddr string, peekPacket func(packet []byte)) func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
+func UDPHandler(s *stack.Stack, udpAddr string, peekRequest func(packet []byte, writer io.Writer) bool, peekResponse func(packet []byte)) func(id stack.TransportEndpointID, pkt *stack.PacketBuffer) bool {
 	return udp.NewForwarder(s, func(request *udp.ForwarderRequest) {
 		endpointID := request.ID()
 		log.Debugf("[TUN-UDP] Debug: LocalPort: %d, LocalAddress: %s, RemotePort: %d, RemoteAddress %s",
@@ -62,7 +62,24 @@ func UDPHandler(s *stack.Stack, udpAddr string, peekPacket func(packet []byte)) 
 			go func() {
 				i := config.LPool.Get().([]byte)[:]
 				defer config.LPool.Put(i[:])
-				written, err := io.CopyBuffer(remote, conn, i)
+				var written int
+				for {
+					read, err := conn.Read(i)
+					if err != nil {
+						errChan <- err
+						break
+					}
+					handled := peekRequest(i[:read], conn)
+					if handled {
+						errChan <- io.EOF
+						return
+					}
+					_, err = remote.Write(i[:read])
+					if err != nil {
+						errChan <- err
+						break
+					}
+				}
 				log.Debugf("[TUN-UDP] Debug: write length %d data to remote", written)
 				errChan <- err
 			}()
@@ -77,7 +94,7 @@ func UDPHandler(s *stack.Stack, udpAddr string, peekPacket func(packet []byte)) 
 						break
 					}
 					written += n
-					peekPacket(i[:n])
+					peekResponse(i[:n])
 					_, err = conn.Write(i[:n])
 					if err != nil {
 						errChan <- err
